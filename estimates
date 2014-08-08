@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+
+from __future__ import division,print_function
+from numpy import *
+from scipy.special import *
+
+def lg_factorial(n):
+  return gammaln(n+1)/log(2)
+
+def lg_choose(n,k):
+  # See http://en.wikipedia.org/wiki/Beta_function
+  return (log(n+1) + betaln(n-k+1,k+1))/-log(2)
+
+def large(n):
+  s = str(n)
+  return ''.join((',' if i and i%3==0 else '')+c for i,c in enumerate(reversed(s)))[::-1]
+
+def approx_bits(satoshis,wallets):
+  '''Information in bits for one protocol round'''
+  w = wallets
+  s = satoshis/wallets
+
+  # Each round, every wallet divides its money and sends it
+  # to all the other wallets.  Assuming the money is evenly
+  # divisible at the beginning of the round, the number of
+  # distinct actions is
+  #   a = choose(s+w-1,s)
+  lg_a = lg_choose(s+w-1,s)
+
+  # Each wallet's information is separate, to the total is
+  return w*lg_a
+
+def examples():
+  print('With no transaction costs:\n')
+  for btc in 1,10,100:
+    for w in 10,100,1000,10000:
+      s = 1e8*btc
+      print('btc %3d, w %5d, bits %11s'%(btc,w,large(int(approx_bits(s,w)))))
+    print()
+
+if __name__=='__main__':
+  examples()
