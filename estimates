@@ -3,6 +3,7 @@
 from __future__ import division,print_function
 from numpy import *
 from scipy.special import *
+import scipy.optimize
 
 def lg_factorial(n):
   return gammaln(n+1)/log(2)
@@ -15,27 +16,43 @@ def large(n):
   s = str(n)
   return ''.join((',' if i and i%3==0 else '')+c for i,c in enumerate(reversed(s)))[::-1]
 
-def approx_bits(satoshis,wallets):
+def approx_bits(satoshis,wallets,minimum=0):
   '''Information in bits for one protocol round'''
   w = wallets
-  s = satoshis/wallets
+  s = satoshis//wallets
+  
+  def fn(n,verbose=0):
+    # Pick n wallets to send to
+    ss = s - minimum*n
+    ss = maximum(1,ss)
 
-  # Each round, every wallet divides its money and sends it
-  # to all the other wallets.  Assuming the money is evenly
-  # divisible at the beginning of the round, the number of
-  # distinct actions is
-  #   a = choose(s+w-1,s)
-  lg_a = lg_choose(s+w-1,s)
+    # Each round, every wallet divides its money and sends it
+    # to all the other wallets.  Assuming the money is evenly
+    # divisible at the beginning of the round, the number of
+    # distinct actions is
+    #   a = choose(s+w-1,s)
+    lg_a = (ss>1)*(lg_choose(ss+n-1,ss) + lg_choose(w,n))
+    if verbose:
+      print('  minimum %g, s %g, ss %g, i0 %g, i1 %g'%(minimum,s,ss,lg_choose(ss+n-1,ss),(ss>=0)*lg_choose(w,n)))
 
-  # Each wallet's information is separate, to the total is
-  return w*lg_a
+    # Each wallet's information is separate, to the total is
+    return w*lg_a
+
+  # Choose n optimally
+  n = arange(w+1)
+  i = fn(n)
+  if 0:
+    print('as %g, s %g, w %g, n %g, i %g'%(satoshis,s,w,argmax(i),i.max()))
+    fn(argmax(i),verbose=1)
+  return i.max()
 
 def examples():
   print('With no transaction costs:\n')
-  for btc in 1,10,100:
-    for w in 10,100,1000,10000:
+  for btc in 1,2,10,20,100:
+    for w in 10,50,100,500,1000,5000,10000:
       s = 1e8*btc
-      print('btc %3d, w %5d, bits %11s'%(btc,w,large(int(approx_bits(s,w)))))
+      i = approx_bits(s,w,minimum=1e6)
+      print('btc %3d, w %5d, bits %11s'%(btc,w,large(int(i))))
     print()
 
 if __name__=='__main__':
